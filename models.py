@@ -21,7 +21,7 @@ class MenuItem:
                  allergens=None, ingredients=None):
         self.name = name
         self.dining_hall_id = dining_hall_id
-        self.meal_period = meal_period  # breakfast, lunch, dinner
+        self.meal_period = meal_period 
         self.date = date
         self.station = station
         self.is_entree = is_entree

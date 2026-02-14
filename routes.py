@@ -5,7 +5,6 @@ from datetime import datetime
 
 @app.route('/')
 def home():
-    """Home page - just to test if API is running"""
     return jsonify({
         'message': 'UMD Dining API is running!',
         'version': '1.0',
@@ -16,9 +15,8 @@ def home():
         }
     })
 
-@app.route('/api/dining-halls', methods=['GET'])
+@app.get('/api/dining-halls')
 def get_dining_halls():
-    """Get all dining halls"""
     try:
         halls = list(db.dining_halls.find({}, {'_id': 0}))
         return jsonify({
@@ -32,7 +30,7 @@ def get_dining_halls():
             'error': str(e)
         }), 500
 
-@app.route('/api/menu', methods=['GET'])
+@app.get('/api/menu')
 def get_menu():
     """Get menu items with optional filters"""
     try:
@@ -67,7 +65,7 @@ def get_menu():
             'error': str(e)
         }), 500
 
-@app.route('/api/search', methods=['GET'])
+@app.get('/api/search')
 def search_menu():
     """Search menu items by name"""
     try:
