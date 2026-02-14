@@ -25,16 +25,11 @@ def get_dining_halls():
             'data': halls
         })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'success': False,'error': str(e)}), 500
 
 @app.get('/api/menu')
 def get_menu():
-    """Get menu items with optional filters"""
     try:
-        # Build query from parameters
         query = {}
 
         dining_hall_id = request.args.get('dining_hall_id')
@@ -50,7 +45,6 @@ def get_menu():
         if meal_period:
             query['meal_period'] = meal_period.lower()
 
-        # Get menu items from database
         items = list(db.menu_items.find(query, {'_id': 0}).sort('station', 1))
 
         return jsonify({
@@ -60,10 +54,7 @@ def get_menu():
             'data': items
         })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'success': False,'error': str(e)}), 500
 
 @app.get('/api/search')
 def search_menu():
@@ -72,12 +63,8 @@ def search_menu():
         search_query = request.args.get('q', '')
 
         if not search_query:
-            return jsonify({
-                'success': False,
-                'error': 'Search query required'
-            }), 400
+            return jsonify({'success': False,'error': 'Search query required'}), 400
 
-        # Search for items with name containing the query (case-insensitive)
         items = list(db.menu_items.find(
             {'name': {'$regex': search_query, '$options': 'i'}},
             {'_id': 0}
@@ -90,7 +77,4 @@ def search_menu():
             'data': items
         })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'success': False,'error': str(e)}), 500

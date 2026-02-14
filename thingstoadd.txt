@@ -1,0 +1,5 @@
+Filtering:
+    - favorites
+    - open dining halls 
+    - vegetarian 
+    - allergies 
