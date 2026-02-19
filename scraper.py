@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from pymongo import MongoClient
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
 from dotenv import load_dotenv
 
@@ -73,40 +73,84 @@ def get_nutrition_info(rec_num):
     if ingredients:
         nutrition['ingredients'] = ingredients.get_text(strip=True)
 
-    allergens = soup.find('span', class_='labelallergensvalue')                   
-    if allergens:                                                                 
+    allergens = soup.find('span', class_='labelallergensvalue')
+    if allergens:
         nutrition['allergens'] = allergens.get_text(strip=True)
 
     return nutrition
 
 def scrape_dining_hall(location_num, date):
+    """Scrape a dining hall's menu for a date. Adds menu entries and food stubs (no nutrition fetch)."""
     items = parse_menu_page(get_menu_page(location_num, date), location_num, date)
+
     for item in items:
-        nutrition = get_nutrition_info(item['rec_num'])
-        item.update(nutrition)
-    
+        # Add to menus collection
+        db.menus.update_one(
+            {"date": date, "dining_hall_id": location_num, "rec_num": item["rec_num"]},
+            {"$set": {"date": date, "dining_hall_id": location_num, "rec_num": item["rec_num"]}},
+            upsert=True
+        )
+
+        # Add to foods collection if not already there
+        db.foods.update_one(
+            {"rec_num": item["rec_num"]},
+            {"$setOnInsert": {
+                "rec_num": item["rec_num"],
+                "name": item["name"],
+                "nutrition": {},
+                "allergens": "",
+                "ingredients": "",
+                "nutrition_fetched": False
+            }},
+            upsert=True
+        )
+
     return items
 
 def scrape_all_dining_halls(date):
-    db.menu_items.delete_many({"date": date})
-    all_items = []
+    """Scrape all dining halls for a date. Cleans old menus, then scrapes fresh."""
+    today = datetime.now().strftime('%-m/%-d/%Y')
 
+    # Delete old menus (dates before today)
+    all_menus = db.menus.distinct("date")
+    for menu_date in all_menus:
+        try:
+            parsed = datetime.strptime(menu_date, '%m/%d/%Y')
+            if parsed.date() < datetime.now().date():
+                db.menus.delete_many({"date": menu_date})
+        except ValueError:
+            pass
+
+    # Delete today's menus for a fresh scrape
+    db.menus.delete_many({"date": date})
+
+    all_items = []
     for location_num in DINING_HALLS:
         items = scrape_dining_hall(location_num, date)
         all_items.extend(items)
-    
-    if all_items:
-        db.menu_items.insert_many(all_items)
 
     return all_items
 
-def scrape_week():
-    
-    today = datetime.now()
-    weekly = {}
+def fetch_and_cache_nutrition(rec_num):
+    """Fetch nutrition for a food item and cache it permanently. Returns the food document."""
+    food = db.foods.find_one({"rec_num": rec_num})
 
-    for i in range(0,7):
-        day = (today + timedelta(days=i)).date().strftime('%-m/%-d/%Y')
-        weekly[day] = scrape_all_dining_halls(day)
+    if food and food.get("nutrition_fetched"):
+        return food
 
-    return weekly
+    nutrition_data = get_nutrition_info(rec_num)
+
+    update = {
+        "nutrition_fetched": True,
+        "nutrition": {k: v for k, v in nutrition_data.items() if k not in ("ingredients", "allergens")},
+        "allergens": nutrition_data.get("allergens", ""),
+        "ingredients": nutrition_data.get("ingredients", ""),
+    }
+
+    db.foods.update_one(
+        {"rec_num": rec_num},
+        {"$set": update},
+        upsert=True
+    )
+
+    return db.foods.find_one({"rec_num": rec_num})
