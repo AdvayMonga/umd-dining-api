@@ -38,3 +38,8 @@ htmlcov/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Elastic Beanstalk
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
