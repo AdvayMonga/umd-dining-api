@@ -43,27 +43,41 @@ def parse_menu_page(html, dining_hall_id, date):
             if pane_id and label:
                 tab_labels[pane_id] = label
 
-    # Parse food items from each tab pane
+    # Parse food items from each tab pane, grouped by station (card)
     panes = soup.find_all('div', class_='tab-pane')
     for pane in panes:
         pane_id = pane.get('id', '')
         meal_period = tab_labels.get(pane_id, 'Unknown')
 
-        for link in pane.find_all('a', href=True):
-            href = link.get('href')
-            if 'label.aspx' not in href:
-                continue
-            name = link.get_text(strip=True)
-            rec_num = href.split('RecNumAndPort=')[-1]
-            items.append({
-                "name": name,
-                "dining_hall_id": dining_hall_id,
-                "date": date,
-                "rec_num": rec_num,
-                "meal_period": meal_period,
-            })
+        for card in pane.find_all('div', class_='card'):
+            title_el = card.find('h5', class_='card-title')
+            station = title_el.get_text(strip=True) if title_el else 'Unknown'
 
-    # Fallback: if no tab panes found, grab all links without meal period
+            for row in card.find_all('div', class_='menu-item-row'):
+                link = row.find('a', class_='menu-item-name')
+                if not link:
+                    continue
+                href = link.get('href', '')
+                if 'label.aspx' not in href:
+                    continue
+
+                name = link.get_text(strip=True)
+                rec_num = href.split('RecNumAndPort=')[-1]
+
+                # Dietary icons (vegan, vegetarian, dairy, gluten, etc.)
+                icons = [img.get('alt', '') for img in row.find_all('img', class_='nutri-icon')]
+
+                items.append({
+                    "name": name,
+                    "dining_hall_id": dining_hall_id,
+                    "date": date,
+                    "rec_num": rec_num,
+                    "meal_period": meal_period,
+                    "station": station,
+                    "dietary_icons": icons,
+                })
+
+    # Fallback: if no tab panes found, grab all links
     if not panes:
         for link in soup.find_all('a', href=True):
             href = link.get('href')
@@ -77,6 +91,8 @@ def parse_menu_page(html, dining_hall_id, date):
                 "date": date,
                 "rec_num": rec_num,
                 "meal_period": "Unknown",
+                "station": "Unknown",
+                "dietary_icons": [],
             })
 
     return items
@@ -115,9 +131,17 @@ def scrape_dining_hall(location_num, date):
 
     for item in items:
         # Add to menus collection
+        menu_doc = {
+            "date": date,
+            "dining_hall_id": location_num,
+            "rec_num": item["rec_num"],
+            "meal_period": item["meal_period"],
+            "station": item["station"],
+            "dietary_icons": item["dietary_icons"],
+        }
         db.menus.update_one(
             {"date": date, "dining_hall_id": location_num, "rec_num": item["rec_num"], "meal_period": item["meal_period"]},
-            {"$set": {"date": date, "dining_hall_id": location_num, "rec_num": item["rec_num"], "meal_period": item["meal_period"]}},
+            {"$set": menu_doc},
             upsert=True
         )
 
