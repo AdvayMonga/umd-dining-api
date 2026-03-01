@@ -58,6 +58,7 @@ def get_menu():
                 'rec_num': entry['rec_num'],
                 'dining_hall_id': entry['dining_hall_id'],
                 'date': entry['date'],
+                'meal_period': entry.get('meal_period', 'Unknown'),
                 'nutrition_fetched': food.get('nutrition_fetched', False),
             }
             if food.get('nutrition_fetched'):

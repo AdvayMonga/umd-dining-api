@@ -31,22 +31,52 @@ def get_menu_page(location_num, date):
 
 def parse_menu_page(html, dining_hall_id, date):
     soup = BeautifulSoup(html, 'html.parser')
-    links = soup.findAll('a', href=True)
     items = []
 
-    for link in links:
-        href = link.get('href')
-        name = link.get_text(strip=True)
+    # Determine meal period labels from the tab nav
+    tab_labels = {}
+    tabs = soup.find('ul', class_='nav-tabs')
+    if tabs:
+        for tab_link in tabs.find_all('a', role='tab'):
+            pane_id = (tab_link.get('aria-controls') or '').strip()
+            label = tab_link.get_text(strip=True)
+            if pane_id and label:
+                tab_labels[pane_id] = label
 
-        if 'label.aspx' in href:
+    # Parse food items from each tab pane
+    panes = soup.find_all('div', class_='tab-pane')
+    for pane in panes:
+        pane_id = pane.get('id', '')
+        meal_period = tab_labels.get(pane_id, 'Unknown')
+
+        for link in pane.find_all('a', href=True):
+            href = link.get('href')
+            if 'label.aspx' not in href:
+                continue
             name = link.get_text(strip=True)
             rec_num = href.split('RecNumAndPort=')[-1]
-
             items.append({
                 "name": name,
                 "dining_hall_id": dining_hall_id,
                 "date": date,
-                "rec_num": rec_num
+                "rec_num": rec_num,
+                "meal_period": meal_period,
+            })
+
+    # Fallback: if no tab panes found, grab all links without meal period
+    if not panes:
+        for link in soup.find_all('a', href=True):
+            href = link.get('href')
+            if 'label.aspx' not in href:
+                continue
+            name = link.get_text(strip=True)
+            rec_num = href.split('RecNumAndPort=')[-1]
+            items.append({
+                "name": name,
+                "dining_hall_id": dining_hall_id,
+                "date": date,
+                "rec_num": rec_num,
+                "meal_period": "Unknown",
             })
 
     return items
@@ -86,8 +116,8 @@ def scrape_dining_hall(location_num, date):
     for item in items:
         # Add to menus collection
         db.menus.update_one(
-            {"date": date, "dining_hall_id": location_num, "rec_num": item["rec_num"]},
-            {"$set": {"date": date, "dining_hall_id": location_num, "rec_num": item["rec_num"]}},
+            {"date": date, "dining_hall_id": location_num, "rec_num": item["rec_num"], "meal_period": item["meal_period"]},
+            {"$set": {"date": date, "dining_hall_id": location_num, "rec_num": item["rec_num"], "meal_period": item["meal_period"]}},
             upsert=True
         )
 
