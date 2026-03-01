@@ -40,11 +40,8 @@ htmlcov/
 Thumbs.db
 
 # Elastic Beanstalk
-.elasticbeanstalk/*
-!.elasticbeanstalk/*.cfg.yml
-!.elasticbeanstalk/*.global.yml
+.elasticbeanstalk/
 
-# Elastic Beanstalk Files
-.elasticbeanstalk/*
-!.elasticbeanstalk/*.cfg.yml
-!.elasticbeanstalk/*.global.yml
+# Lambda deployment artifacts
+lambda/scripts/
+lambda/*.zip
