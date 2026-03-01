@@ -25,3 +25,18 @@ try:
 except Exception as e:
     print("Error connecting to MongoDB:", e)
     raise
+
+# Seed dining halls into the database
+DINING_HALLS = {
+    "19": {"name": "Yahentamitsi Dining Hall", "location": "South Campus"},
+    "51": {"name": "251 North", "location": "North Campus"},
+    "16": {"name": "South Campus Diner", "location": "South Campus"},
+}
+
+for hall_id, info in DINING_HALLS.items():
+    db.dining_halls.update_one(
+        {"hall_id": hall_id},
+        {"$set": {"hall_id": hall_id, "name": info["name"], "location": info["location"]}},
+        upsert=True
+    )
+print(f"Seeded {len(DINING_HALLS)} dining halls")
